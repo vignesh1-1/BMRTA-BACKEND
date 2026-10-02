@@ -13,29 +13,29 @@ app = FastAPI(title="BMRTA Transit API")
 # --- 1. CORS CONFIGURATION (Enables GitHub Pages Communication) ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows requests from your GitHub Pages live domain
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- 2. MONGODB ATLAS CONNECTION ---
+# --- 2. MONGODB ATLAS CONNECTION (SWITCHED TO bmrta_transit) ---
 DEFAULT_URI = (
     "mongodb://adminhostcyanx_db_user:f68KGSR7YvxYhU02@"
     "ac-fa8wfwr-shard-00-00.rspb5i0.mongodb.net:27017,"
     "ac-fa8wfwr-shard-00-01.rspb5i0.mongodb.net:27017,"
     "ac-fa8wfwr-shard-00-02.rspb5i0.mongodb.net:27017/"
-    "BengaluruCityDB?ssl=true&replicaSet=atlas-xr7k4w-shard-0&authSource=admin&appName=bangalorecluster"
+    "bmrta_transit?ssl=true&replicaSet=atlas-xr7k4w-shard-0&authSource=admin&appName=bangalorecluster"
 )
 
 MONGO_URI = os.getenv("MONGO_URI", DEFAULT_URI)
-DB_NAME = os.getenv("DB_NAME", "BengaluruCityDB")
+DB_NAME = os.getenv("DB_NAME", "bmrta_transit")
 
 client = AsyncIOMotorClient(MONGO_URI, tlsCAFile=certifi.where())
 db = client[DB_NAME]
 
 
-# --- 3. NATIVE PASSWORD HASH (Zero external C-dependency issues) ---
+# --- 3. NATIVE PASSWORD HASH ---
 def hash_password(password: str) -> str:
     return hashlib.sha256(password.encode("utf-8")).hexdigest()
 
@@ -88,7 +88,7 @@ def health_check():
     return {
         "status": "online",
         "service": "BMRTA Transit Backend",
-        "database": "Connected to MongoDB Atlas",
+        "database": f"Connected to MongoDB Atlas: {DB_NAME}",
     }
 
 
@@ -234,7 +234,7 @@ async def topup_wallet(data: WalletPayload, request: Request):
 async def get_leaderboard():
     cursor = (
         db.users.find(
-            {"moon_mode": {"$ne": True}},  # Ghost Mode users stay hidden from public leaderboard
+            {"moon_mode": {"$ne": True}},
             {"name": 1, "username": 1, "co2_points": 1, "avatar": 1, "banner": 1},
         )
         .sort("co2_points", -1)
@@ -263,6 +263,5 @@ async def submit_feedback(data: FeedbackPayload, request: Request):
 # --- 11. DYNAMIC RENDER RUNNER ---
 if __name__ == "__main__":
     import uvicorn
-    # Render binds dynamically to the PORT environment variable
     port = int(os.environ.get("PORT", 8000))
     uvicorn.run("server:app", host="0.0.0.0", port=port)
